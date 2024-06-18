@@ -1,10 +1,10 @@
 ## El fondo dura 97 años más
 ## Funciones para programar:
 
-# Invalidez
+# Invalidez [SI]
 # Viudez [SI]
 # Orfandad [SI]
-# Vejez
+# Vejez [SI]
 # Activo
 # Inactivo
 
@@ -54,7 +54,8 @@ Pensionados_viudos <- read_csv("Desktop/CA0412 Pensiones I/Codigo/Bases separada
 Sim_orfandad <- function(edad, sexo, ID, momento){
   resultado <- c(ID, rep(NA, 97))
   aleatorio <- runif(26-edad)
-  probabilidades <- sobrevivencia[[momento-edad-1934]]$px[sobrevivencia[[momento-edad-1934]]$sex == sexo][(edad+1):116][(edad+1):26]
+  aux<-which(sobrevivencia[[momento-edad-1934]]$edad[sobrevivencia[[momento-edad-1934]]$sex == sexo]==edad)
+  probabilidades <- sobrevivencia[[momento-edad-1934]]$px[sobrevivencia[[momento-edad-1934]]$sex == sexo][(aux):length(sobrevivencia[[momento-edad-1934]]$px[sobrevivencia[[momento-edad-1934]]$sex == sexo])]
   anio_muerte <- which(aleatorio>probabilidades)
   if(length(anio_muerte) > 0){
     resultado[(momento-2022):(momento-2022+anio_muerte[1]-1)] <- rep(1, anio_muerte[1])
@@ -67,19 +68,62 @@ Sim_orfandad <- function(edad, sexo, ID, momento){
 Sim_viudez <- function(edad, sexo, ID, momento){
   resultado <- c(ID, rep(NA, 97))
   aleatorio <- runif(116-edad)
-  probabilidades <- sobrevivencia[[momento-edad-1934]]$px[sobrevivencia[[momento-edad-1934]]$sex == sexo][(edad+1):116]
+  aux<-which(sobrevivencia[[momento-edad-1934]]$edad[sobrevivencia[[momento-edad-1934]]$sex == sexo]==edad)
+  probabilidades <- sobrevivencia[[momento-edad-1934]]$px[sobrevivencia[[momento-edad-1934]]$sex == sexo][(aux):length(sobrevivencia[[momento-edad-1934]]$px[sobrevivencia[[momento-edad-1934]]$sex == sexo])]
   anio_muerte <- which(aleatorio>probabilidades)[1]
-  resultado[(momento-2022):(momento-2022+anio_muerte[1]-1)] <- rep(1, anio_muerte[1])
+  resultado[(momento-2022):(momento-2022+anio_muerte-1)] <- rep(1, anio_muerte)
   return(resultado)
 }
 
 Sim_invalidez <- function(edad, sexo, ID, momento){
   resultado <- c(ID, rep(NA, 97))
   aleatorio <- runif(116-edad)
-  probabilidades <- sobrevivencia$px[sobrevivencia$ynac == momento-edad & sobrevivencia$sex == sexo][(edad+1):116]
+  aux<-which(sobrevivencia[[momento-edad-1934]]$edad[sobrevivencia[[momento-edad-1934]]$sex == sexo]==edad)
+  probabilidades <- sobrevivencia[[momento-edad-1934]]$px[sobrevivencia[[momento-edad-1934]]$sex == sexo][(aux):length(sobrevivencia[[momento-edad-1934]]$px[sobrevivencia[[momento-edad-1934]]$sex == sexo])]
   anio_muerte <- which(aleatorio>probabilidades)[1]
-  
-  # FALTA CALCULAR VIUDXS Y HUERFANXS
+  #anio_muerte<-3
   resultado[(momento-2022):(momento-2022+anio_muerte[1]-1)] <- rep(1, anio_muerte[1])
+
+  # Estados: 1-Pensionado vivo, 2-Viudez y orfandad, 3-Solo viudez, 4-Solo orfandad
+  orfandad <- c(ID, rep(NA, 97))
+  viudez <- c(ID, rep(NA, 97))
+  print(edad+anio_muerte<50)
+  if(edad+anio_muerte < 50){
+    sexo3 <- round(runif(1,1,2))
+    orfandad <- Sim_orfandad(edad+anio_muerte-25, sexo3, ID, momento + anio_muerte)
+  }
+  if(round(runif(1))==1 & edad+anio_muerte < 116){
+    sexo2 <- 3 - sexo
+    viuda <- Sim_viudez(edad+anio_muerte, sexo2, ID, anio_muerte+momento)
+  }
+  print(viuda)
+  print(orfandad)
+  resultado <- ifelse(!is.na(orfandad) & !is.na(viuda) & orfandad == 1 & viuda == 1, 2,
+                      ifelse(!is.na(viuda) & viuda == 1 & (is.na(orfandad) | orfandad != 1), 3,
+                             ifelse(!is.na(orfandad) & orfandad == 1 & (is.na(viuda) | viuda != 1), 4,
+                                    resultado)))
+  
+  return(resultado)
+}
+
+Sim_vejez <- function(edad, sexo, ID, momento){
+  resultado <- c(ID, rep(NA, 97))
+  aleatorio <- runif(116-edad)
+  aux<-which(sobrevivencia[[momento-edad-1934]]$edad[sobrevivencia[[momento-edad-1934]]$sex == sexo]==edad)
+  probabilidades <- sobrevivencia[[momento-edad-1934]]$px[sobrevivencia[[momento-edad-1934]]$sex == sexo][(aux):length(sobrevivencia[[momento-edad-1934]]$px[sobrevivencia[[momento-edad-1934]]$sex == sexo])]
+  anio_muerte <- which(aleatorio>probabilidades)[1]
+  resultado[(momento-2022):(momento-2022+anio_muerte[1]-1)] <- rep(1, anio_muerte[1])
+  
+  # Estados: 1-Pensionado vivo, 2-Viudez
+  viudez <- c(ID, rep(NA, 97))
+  if(runif(1)< 0.5 & edad+anio_muerte < 116){
+    sexo2 <- 3 - sexo
+    print(edad+anio_muerte)
+    viudez <- Sim_viudez(edad+anio_muerte, sexo2, ID, anio_muerte+momento)
+  }
+  
+  resultado <- ifelse(!is.na(viudez) & viudez==1, 2, resultado)
+  
+  return(resultado)
 }
 
