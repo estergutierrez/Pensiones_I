@@ -136,28 +136,23 @@ Sim_invalidez <- function(edad, sexo, ID, momento){
   aux<-which(sobrevivencia[[momento-edad-1934]]$edad[sobrevivencia[[momento-edad-1934]]$sex == sexo]==edad)
   probabilidades <- sobrevivencia[[momento-edad-1934]]$px[sobrevivencia[[momento-edad-1934]]$sex == sexo][(aux):length(sobrevivencia[[momento-edad-1934]]$px[sobrevivencia[[momento-edad-1934]]$sex == sexo])]
   anio_muerte <- which(aleatorio>probabilidades)[1]
-  #anio_muerte<-3
   resultado[(momento-2022):(momento-2022+anio_muerte[1]-1)] <- rep(1, anio_muerte[1])
 
   # Estados: 1-Pensionado vivo, 2-Viudez y orfandad, 3-Solo viudez, 4-Solo orfandad
   orfandad <- c(ID, rep(NA, 97))
   viudez <- c(ID, rep(NA, 97))
-  print(edad+anio_muerte<50)
   if(edad+anio_muerte < 50){
     sexo3 <- round(runif(1,1,2))
     orfandad <- Sim_orfandad(edad+anio_muerte-25, sexo3, ID, momento + anio_muerte)
   }
   if(round(runif(1))==1 & edad+anio_muerte < 116){
     sexo2 <- 3 - sexo
-    viuda <- Sim_viudez(edad+anio_muerte, sexo2, ID, anio_muerte+momento)
+    viudez <- Sim_viudez(edad+anio_muerte, sexo2, ID, anio_muerte+momento)
   }
-  print(viuda)
-  print(orfandad)
-  resultado <- ifelse(!is.na(orfandad) & !is.na(viuda) & orfandad == 1 & viuda == 1, 2,
-                      ifelse(!is.na(viuda) & viuda == 1 & (is.na(orfandad) | orfandad != 1), 3,
-                             ifelse(!is.na(orfandad) & orfandad == 1 & (is.na(viuda) | viuda != 1), 4,
+  resultado <- ifelse(!is.na(orfandad) & !is.na(viudez) & orfandad == 1 & viudez == 1, 2,
+                      ifelse(!is.na(viudez) & viudez == 1 & (is.na(orfandad) | orfandad != 1), 3,
+                             ifelse(!is.na(orfandad) & orfandad == 1 & (is.na(viudez) | viudez != 1), 4,
                                     resultado)))
-  
   return(resultado)
 }
 
@@ -173,7 +168,6 @@ Sim_vejez <- function(edad, sexo, ID, momento){
   viudez <- c(ID, rep(NA, 97))
   if(runif(1)< 0.5 & edad+anio_muerte < 116){
     sexo2 <- 3 - sexo
-    print(edad+anio_muerte)
     viudez <- Sim_viudez(edad+anio_muerte, sexo2, ID, anio_muerte+momento)
   }
   
@@ -182,38 +176,78 @@ Sim_vejez <- function(edad, sexo, ID, momento){
   return(resultado)
 }
 
-#### Los mal nacidos huerfanos
-
-huerfanitos <- data.frame(Edad<- Pensionados_huerfanos$Edad, Sexo <- Pensionados_huerfanos$SEXO, ID <- Pensionados_huerfanos$ID_Pensionado, Momento <- 2024)
-colnames(huerfanitos) <- c("Edad", "Sexo", "ID", "Momento")
-huerfanitos <- huerfanitos %>%
-  mutate(Sexo = ifelse(Sexo == "M", 1, ifelse(Sexo == "F", 2, Sexo)))
-
-resultados_de_los_sin_papa <- data.frame(matrix(nrow=nrow(huerfanitos), ncol = 98))
-colnames(resultados_de_los_sin_papa) <- c("ID", 2024:(2024+96))
-
-for (i in 1:nrow(huerfanitos)) {
-  resultados_de_los_sin_papa[i,] <- Sim_orfandad(huerfanitos[i,1],
-                                                 huerfanitos[i,2],
-                                                 0,
-                                                 huerfanitos[i,4])
-  resultados_de_los_sin_papa[i,1] = huerfanitos[i,3]
+for (j in 1:5000) {
+  
+  #### Los mal nacidos huerfanos
+  
+  huerfanitos <- data.frame(Edad<- Pensionados_huerfanos$Edad, Sexo <- Pensionados_huerfanos$SEXO, ID <- Pensionados_huerfanos$ID_Pensionado, Momento <- 2024)
+  colnames(huerfanitos) <- c("Edad", "Sexo", "ID", "Momento")
+  huerfanitos <- huerfanitos %>%
+    mutate(Sexo = ifelse(Sexo == "M", 1, ifelse(Sexo == "F", 2, Sexo)))
+  
+  orfandad <- data.frame(matrix(nrow=nrow(huerfanitos), ncol = 98))
+  colnames(orfandad) <- c("ID", 2024:(2024+96))
+  
+  for (i in 1:nrow(huerfanitos)) {
+    orfandad[i,] <- as.integer(Sim_orfandad(huerfanitos[i,1],
+                                            huerfanitos[i,2],
+                                            0,
+                                            huerfanitos[i,4]))
+    orfandad[i,1] = huerfanitos[i,3]
+  }
+  rm(huerfanitos)
+  
+  #### Los insufribles viudos
+  
+  viudx <- data.frame(Edad<- Pensionados_viudos$Edad, Sexo <- Pensionados_viudos$SEXO, ID <- Pensionados_viudos$ID_Pensionado, Momento <- 2024)
+  colnames(viudx) <- c("Edad", "Sexo", "ID", "Momento")
+  viudx <- viudx %>%
+    mutate(Sexo = ifelse(Sexo == "M", 1, ifelse(Sexo == "F", 2, Sexo)))
+  
+  viudez <- data.frame(matrix(nrow=nrow(viudx), ncol = 98))
+  colnames(viudez) <- c("ID", 2024:(2024+96))
+  
+  for (i in 1:nrow(viudx)) {
+    viudez[i,] <- as.integer(Sim_viudez(viudx[i,1], viudx[i,2],
+                                        0, viudx[i,4]))
+    viudez[i,1] = viudx[i,3]
+  }
+  rm(viudx)
+  
+  #### Los viejos 
+  
+  viejos <- data.frame(Edad<- Pensionados_vejez$Edad, Sexo <- Pensionados_vejez$SEXO, ID <- Pensionados_vejez$ID_Pensionado, Momento <- 2024)
+  colnames(viejos) <- c("Edad", "Sexo", "ID", "Momento")
+  viejos <- viejos %>%
+    mutate(Sexo = ifelse(Sexo == "M", 1, ifelse(Sexo == "F", 2, Sexo)))
+  viejos$Sexo <- as.integer(viejos$Sexo)
+  vejez <- data.frame(matrix(nrow=nrow(viejos), ncol = 98))
+  colnames(vejez) <- c("ID", 2024:(2024+96))
+  
+  for (i in 1:nrow(viejos)) {
+    vejez[i,] <- as.integer(Sim_vejez(viejos[i,1], viejos[i,2],
+                                      0, viejos[i,4]))
+    vejez[i,1] = viejos[i,3]
+  }
+  rm(viejos)
+  
+  
+  #### Los invalidos
+  
+  invalidos <- data.frame(Edad<- Pensionados_invalidez$Edad, Sexo <- Pensionados_invalidez$SEXO, ID <- Pensionados_invalidez$ID_Pensionado, Momento <- 2024)
+  colnames(invalidos) <- c("Edad", "Sexo", "ID", "Momento")
+  invalidos <- invalidos %>%
+    mutate(Sexo = ifelse(Sexo == "M", 1, ifelse(Sexo == "F", 2, Sexo)))
+  
+  invalidos$Sexo <- as.integer(invalidos$Sexo)
+  invalidez <- data.frame(matrix(nrow=nrow(invalidos), ncol = 98))
+  colnames(invalidez) <- c("ID", 2024:(2024+96))
+  
+  for (i in 1:nrow(invalidez)) {
+    invalidez[i,] <- as.integer(Sim_invalidez(invalidos[i,1], invalidos[i,2],
+                                              0, invalidos[i,4]))
+    invalidez[i,1] = invalidos[i,3]
+  }
+  rm(invalidos)
+  print(j)
 }
-#### Los insufribles viudos
-
-viudx <- data.frame(Edad<- Pensionados_viudos$Edad, Sexo <- Pensionados_viudos$SEXO, ID <- Pensionados_viudos$ID_Pensionado, Momento <- 2024)
-colnames(viudx) <- c("Edad", "Sexo", "ID", "Momento")
-viudx <- viudx %>%
-  mutate(Sexo = ifelse(Sexo == "M", 1, ifelse(Sexo == "F", 2, Sexo)))
-
-resultados_viudx <- data.frame(matrix(nrow=nrow(viudx), ncol = 98))
-colnames(resultados_viudx) <- c("ID", 2024:(2024+96))
-
-for (i in 1:nrow(viudx)) {
-  resultados_viudx[i,] <- Sim_viudez(viudx[i,1], viudx[i,2],
-                                                 0, viudx[i,4])
-  resultados_viudx[i,1] = viudx[i,3]
-}
-#### Los viejos 
-
-#### Los invalidos
