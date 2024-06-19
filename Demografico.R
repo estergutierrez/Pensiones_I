@@ -6,8 +6,8 @@
 # Orfandad [SI]
 # Vejez [SI]
 # Activo
-# Inactivo con más de 180 cuotas y mayor de 48 [SI]
-# Inactivo con menos de 180 cuotas y menor de 48 [SI]
+# Inactivo con más de 180 cuotas y mayor de 48
+# Inactivo con menos de 180 cuotas y menor de 48
 
 # Librerias
 library(dplyr)
@@ -45,7 +45,7 @@ for(i in 68:97){
   sobrevivencia[[i]]$r00_act <- 1-sobrevivencia[[i]][,5]-sobrevivencia[[i]][,7]
 }
 
-rm(Mortalidad,Invalidez)
+rm(Mortalidad,Invalidez,i)
 # Poblaciones
 Activos <- read.csv("~/Desktop/CA0412 Pensiones I/Codigo/Bases separadas/Activos_ciclo.csv")
 Inactivo_180_mas48 <- read_csv("Desktop/CA0412 Pensiones I/Codigo/Bases separadas/Inactivo_menos180_mas48.csv")
@@ -213,6 +213,110 @@ Sim_inactivo_menos180_mayor48 <- function(edad, sexo, ID, momento){
   
   return(resultado)
 }
+
+Sim_activo <- function(edad, sexo, ID, momento) {
+  
+  # Estados:
+  # 0 - Cotizando
+  # 1 - Pensionado por invalidez
+  # 2 - Viudez
+  # 3 - Viudez y orfandad
+  # 4 - Orfandad
+  # 5 - Pensionado por vejez
+  
+  resultado <- c(ID)
+  
+  while (edad < 115) {
+    momento_actual <- momento - edad - 1934
+    aux <- which(sobrevivencia[[momento_actual]]$edad[sobrevivencia[[momento_actual]]$sex == sexo] == edad)
+    
+    ix <- sobrevivencia[[momento_actual]]$ix[sobrevivencia[[momento_actual]]$sex == sexo][aux]
+    r00_act <- sobrevivencia[[momento_actual]]$r00_act[sobrevivencia[[momento_actual]]$sex == sexo][aux]
+    aleatorio <- runif(1)
+    
+    if (edad < 65) {
+      
+      if (r00_act >= aleatorio) {
+        edad <- edad + 1
+        momento <- momento + 1
+        #        print("Se mantiene trabajando")
+        resultado <- c(resultado, 0)
+      } else if (r00_act + ix >= aleatorio) {
+        aux2 <- Sim_invalidez(edad, sexo, ID, momento)[(momento - 2022):98]
+        aux2[aux2==2] <- 3
+        aux2[aux2==3] <- 2
+        resultado <- c(resultado, aux2)
+        #       print("Quedó inválido")
+        break
+      } else {
+        
+        viudez <- c(ID, rep(NA, 97))
+        orfandad <- c(ID, rep(NA, 97))
+        if (edad + 1 < 116) {
+          sexo2 <- 3 - sexo
+          viudez <- Sim_viudez(edad, sexo2, ID, momento)
+          #         viudez[viudez==1] <- 2
+        }
+        if(edad<51){
+          sexo2 <- round(runif(1))
+          orfandad <- Sim_orfandad(edad-25, sexo2, ID, momento)
+          #         orfandad[orfandad==1] <- 4
+        }
+        
+        aux3<-c(resultado, rep(NA,(98-length(resultado))))
+        
+        aux3 <- ifelse(!is.na(orfandad) & !is.na(viudez) & orfandad == 1 & viudez == 1, 3,
+                       ifelse(!is.na(viudez) & viudez == 1 & (is.na(orfandad) | orfandad != 1), 2,
+                              ifelse(!is.na(orfandad) & orfandad == 1 & (is.na(viudez) | viudez != 1), 4,
+                                     aux3)))
+        
+        resultado <- aux3
+        #       print("Murió")
+        break
+      }
+      
+    } 
+    else {
+      r00_pen <- sobrevivencia[[momento_actual]]$r00_pen[sobrevivencia[[momento_actual]]$sex == sexo][aux]
+      r01_pen <- sobrevivencia[[momento_actual]]$r01_pen[sobrevivencia[[momento_actual]]$sex == sexo][aux]
+      
+      if (r00_pen >= aleatorio) {
+        edad <- edad + 1
+        momento <- momento + 1
+        #        print("Se mantiene trabajando")
+        resultado <- c(resultado, 0)
+      } else if (r00_pen + r01_pen >= aleatorio) {
+        aux1 <- Sim_vejez(edad, sexo, ID, momento)[(momento-2022):98]
+        aux1[aux1==1] <- 5
+        resultado <- c(resultado, aux1)
+        #        print("Se pensionó")
+        break
+      } else if (r00_pen + r01_pen + ix >= aleatorio) {
+        aux2 <- Sim_invalidez(edad, sexo, ID, momento)[(momento - 2022):98]
+        aux2[aux2==2] <- 3
+        aux2[aux2==3] <- 2
+        resultado <- c(resultado, aux2)
+        #       print("Quedó inválido")
+        break
+      } else {
+        
+        viudez <- c(ID, rep(NA, 97))
+        
+        if (edad + 1 < 116) {
+          sexo2 <- 3 - sexo
+          viudez <- Sim_viudez(edad, sexo2, ID, momento)
+          viudez[viudez==1] <- 2
+        }
+        
+        resultado <- c(resultado,viudez[(momento-2022):98])
+        #       print("Murió")
+        break
+      }
+    }
+  }
+  return(resultado)
+}
+
 ######### SIMULACIONES
 tic()
   #### Los mal nacidos huerfanos
@@ -320,5 +424,22 @@ tic()
     inactivos_menos48_sim[i,1] <- inactivos_menos48[i,3]
   }
   rm(inactivos_menos48,i)
-
+  
+  
+  ### ACTIVOS
+  activos <- data.frame(Edad<- Activos$Edad, Sexo <- Activos$Sexo, ID <- Activos$ID, Momento <- 2024)
+  colnames(activos) <- c("Edad", "Sexo", "ID", "Momento")
+  activos <- activos %>%
+    mutate(Sexo = ifelse(Sexo == "M", 1, ifelse(Sexo == "F", 2, Sexo)))
+  
+  activos$Sexo <- as.integer(activos$Sexo)
+  activos_sim <- data.frame(matrix(nrow=nrow(activos), ncol = 98))
+  colnames(activos_sim) <- c("ID", 2024:(2024+96))
+  
+  for (i in 1:nrow(activos_sim)) {
+    activos_sim[i,] <- as.integer(Sim_activo(activos[i,1], activos[i,2],
+                                             0, activos[i,4]))
+    activos_sim[i,1] <- activos[i,3]
+  }
+  rm(activos,i)
   toc()
