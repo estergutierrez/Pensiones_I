@@ -6,8 +6,8 @@
 # Orfandad [SI]
 # Vejez [SI]
 # Activo
-# Inactivo con más de 180 cuotas y mayor de 48
-# Inactivo con menos de 180 cuotas y menor de 48
+# Inactivo con más de 180 cuotas y mayor de 48 [SI]
+# Inactivo con menos de 180 cuotas y menor de 48 [SI]
 
 # Librerias
 library(dplyr)
