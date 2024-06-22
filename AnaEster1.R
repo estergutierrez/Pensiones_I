@@ -459,11 +459,26 @@ Sim_activo<-function(edad, sexo, ID, momento, cuotas) {
       r01_pen <- sobrevivencia[[momento_actual]]$r01_pen[sobrevivencia[[momento_actual]]$sex == sexo][aux]
       
       if (r00_pen >= aleatorio) {
-        edad <- edad + 1
-        momento <- momento + 1
-        cuotas_pen<-cuotas_pen+Densidad[edad-17]
-        #        print("Se mantiene trabajando")
-        resultado <- c(resultado, 0)
+      # edad <- edad + 1
+        # momento <- momento + 1
+        # cuotas_pen<-cuotas_pen+Densidad[edad-17]
+        # #        print("Se mantiene trabajando")
+        # resultado <- c(resultado, 0)
+        if(cuotas_pen>=300){
+          #piruja decidio cotizar mas
+          edad <- edad + 1
+          momento <- momento + 1
+          cuotas_pen<-cuotas_pen+Densidad[edad-17]
+          resultado <- c(resultado, 6)
+        }else{
+          edad <- edad + 1
+          momento <- momento + 1
+          cuotas_pen<-cuotas_pen+Densidad[edad-17]
+          #        print("Se mantiene trabajando")
+          resultado <- c(resultado, 0)
+          
+        }
+        
       } else if (r00_pen + r01_pen >= aleatorio) {
        
         if(cuotas_pen<300){
@@ -576,7 +591,6 @@ for (i in 1:nrow(viudx)) {
 rm(viudx,i)
 
 #### Los viejos 
-
 viejos <- data.frame(Edad<- Pensionados_vejez$Edad, Sexo <- Pensionados_vejez$SEXO, ID <- Pensionados_vejez$ID_Pensionado, Momento <- 2024)
 colnames(viejos) <- c("Edad", "Sexo", "ID", "Momento")
 viejos <- viejos %>%
@@ -587,7 +601,7 @@ colnames(vejez) <- c("ID", 2024:(2024+96))
 
 for (i in 1:nrow(viejos)) {
   vejez[i,] <- as.integer(Sim_vejez(viejos[i,1], viejos[i,2],
-                                    0, viejos[i,4]))
+                                    0, viejos[i,4])$resultado)
   vejez[i,1] = viejos[i,3]
 }
 rm(viejos,i)
@@ -606,31 +620,10 @@ colnames(invalidez) <- c("ID", 2024:(2024+96))
 
 for (i in 1:nrow(invalidez)) {
   invalidez[i,] <- as.integer(Sim_invalidez(invalidos[i,1], invalidos[i,2],
-                                            0, invalidos[i,4]))
+                                            0, invalidos[i,4])$resultado)
   invalidez[i,1] = invalidos[i,3]
 }
 rm(invalidos,i)
-### INACTIVOS MAYORES DE 48 CON -180 CUOTAS
-inactivos_mas48 <- data.frame(Edad<- Inactivo_180_mas48$Edad, Sexo <- Inactivo_180_mas48$Sexo, ID <- Inactivo_180_mas48$ID,
-                              Momento <- 2024, Cuotas3anios<-Inactivo_180_mas48$Cuotas3anios,Cuotas2anios<-Inactivo_180_mas48$Cuotas2anios, 
-                              Cuotas4anios<-Inactivo_180_mas48$Cuotas4anios, Cuotas<-Inactivo_180_mas48$num_cuotas)
-colnames(inactivos_mas48) <- c("Edad", "Sexo", "ID", "Momento","Cuotas3anios", "Cuotas2anios","Cuotas4anios","Cuotas")
-inactivos_mas48 <- inactivos_mas48 %>%
-  mutate(Sexo = ifelse(Sexo == "M", 1, ifelse(Sexo == "F", 2, Sexo)))
-
-inactivos_mas48$Sexo <- as.integer(inactivos_mas48$Sexo)
-inactivos_mas48_sim <- data.frame(matrix(nrow=nrow(inactivos_mas48), ncol = 98))
-colnames(inactivos_mas48_sim) <- c("ID", 2024:(2024+96))
-tic()
-for (i in 1:nrow(inactivos_mas48_sim)) {
-  inactivos_mas48_sim[i,] <- as.integer(Sim_inactivo_menos180_mayor48(inactivos_mas48[i,1], inactivos_mas48[i,2],
-                                                                      0, inactivos_mas48[i,4],inactivos_mas48[i,5],
-                                                                      inactivos_mas48[i,6], inactivos_mas48[i,7],
-                                                                      inactivos_mas48[i,8]))
-  inactivos_mas48_sim[i,1] <- inactivos_mas48[i,3]
-}
-rm(inactivos_mas48,i)
-toc()
 ### INACTIVOS MENORES DE 48 CON -180 CUOTAS
 
 inactivos_menos48 <- data.frame(Edad<- Inactivo_180_menos48$Edad, Sexo <- Inactivo_180_menos48$Sexo, ID <- Inactivo_180_menos48$ID, Momento <- 2024,
